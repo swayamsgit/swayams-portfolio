@@ -8324,7 +8324,7 @@ const i0 = "" + new URL("posters-03c-DcrTPHEA.jpg", import.meta.url).href,
     sv = "" + new URL("moneo-06-rsypki0G.jpg", import.meta.url).href,
     av = "" + new URL("moneo-07-tpNqzH2u.jpg", import.meta.url).href,
     uv = "" + new URL("moneo-08-BI-CTbcm.jpg", import.meta.url).href,
-    cv = "" + new URL("portrait-cutout-THAYbbHN.png", import.meta.url).href,
+    cv = "" + new URL("portrait-art.jpg", import.meta.url).href,
     fv = "" + new URL("portrait-sil-blue-B0oZ7dLr.png", import.meta.url).href,
     dv = "" + new URL("portrait-sil-red-Cxl1ui-m.png", import.meta.url).href,
     pv = "" + new URL("portrait-sil-black-CZ9l0fgm.png", import.meta.url).href,
@@ -11987,15 +11987,9 @@ function RotCard() {
     const el = ref.current;
     if (!el) return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    let angle = 45, vel = 0, dragging = false, lastA = 0, curSuit = -1, raf = 0, cx = 0, cy = 0;
-    const center = () => {
-      const r = el.getBoundingClientRect();
-      cx = r.left + r.width / 2;
-      cy = r.top + r.height / 2;
-    };
-    const angOf = (e) => Math.atan2(e.clientY - cy, e.clientX - cx) * 180 / Math.PI;
+    let yaw = 0, vel = 0, dragging = false, lastX = 0, curSuit = -1, raf = 0, lastT = 0;
     const paint = () => {
-      const si = (Math.floor(angle / 360) % 4 + 4) % 4;
+      const si = (Math.floor(yaw / 360) % 4 + 4) % 4;
       if (si !== curSuit) {
         curSuit = si;
         const suit = SUITS[si];
@@ -12004,11 +11998,13 @@ function RotCard() {
           n.textContent = suit.sym;
         });
       }
-      el.style.setProperty("--rz", angle + "deg");
+      el.style.setProperty("--ry", yaw + "deg");
     };
-    const tick = () => {
+    const tick = (t) => {
+      const dt = lastT ? Math.min(t - lastT, 64) : 16;
+      lastT = t;
       if (!dragging) {
-        angle += 0.35 + vel;
+        yaw += dt * 0.1 + vel;
         vel *= 0.95;
         if (Math.abs(vel) < 1e-3) vel = 0;
       }
@@ -12017,8 +12013,7 @@ function RotCard() {
     };
     const down = (e) => {
       dragging = true;
-      center();
-      lastA = angOf(e);
+      lastX = e.clientX;
       vel = 0;
       try {
         el.setPointerCapture(e.pointerId);
@@ -12027,13 +12022,10 @@ function RotCard() {
     };
     const move = (e) => {
       if (!dragging) return;
-      const a = angOf(e);
-      let d = a - lastA;
-      if (d > 180) d -= 360;
-      if (d < -180) d += 360;
-      lastA = a;
-      angle += d;
-      vel = d * 0.15;
+      const dx = e.clientX - lastX;
+      lastX = e.clientX;
+      yaw += dx * 0.5;
+      vel = dx * 0.06;
       paint();
     };
     const up = () => {
@@ -12052,7 +12044,7 @@ function RotCard() {
       window.removeEventListener("pointercancel", up);
     };
   }, []);
-  return /* @__PURE__ */ N.createElement("div", { className: "rot-card rot-card-v3", ref, style: { "--rz": "45deg", "--fc": "#c1272d", touchAction: "pan-y" }, role: "img", "aria-label": "spinning jack playing card - drag to turn" }, /* @__PURE__ */ N.createElement("div", { className: "rot-face" }, /* @__PURE__ */ N.createElement("span", { className: "rot-corner rot-tl" }, "J ", /* @__PURE__ */ N.createElement("i", { className: "rot-suit" }, "\u2665")), /* @__PURE__ */ N.createElement("span", { className: "rot-big" }, "J", /* @__PURE__ */ N.createElement("i", { className: "rot-suit" }, "\u2665")), /* @__PURE__ */ N.createElement("span", { className: "rot-word" }, "jack"), /* @__PURE__ */ N.createElement("span", { className: "rot-corner rot-br" }, "J ", /* @__PURE__ */ N.createElement("i", { className: "rot-suit" }, "\u2665"))));
+  return /* @__PURE__ */ N.createElement("div", { className: "rot-card rot-card-v3", ref, style: { "--ry": "0deg", "--fc": "#c1272d", touchAction: "pan-y" }, role: "img", "aria-label": "spinning jack playing card - drag to turn" }, /* @__PURE__ */ N.createElement("div", { className: "rot-yaw" }, /* @__PURE__ */ N.createElement("div", { className: "rot-face" }, /* @__PURE__ */ N.createElement("span", { className: "rot-corner rot-tl" }, "J ", /* @__PURE__ */ N.createElement("i", { className: "rot-suit" }, "\u2665")), /* @__PURE__ */ N.createElement("span", { className: "rot-big" }, "J", /* @__PURE__ */ N.createElement("i", { className: "rot-suit" }, "\u2665")), /* @__PURE__ */ N.createElement("span", { className: "rot-word" }, "jack"), /* @__PURE__ */ N.createElement("span", { className: "rot-corner rot-br" }, "J ", /* @__PURE__ */ N.createElement("i", { className: "rot-suit" }, "\u2665"))), /* @__PURE__ */ N.createElement("div", { className: "rot-face rot-cardback" }, /* @__PURE__ */ N.createElement("span", { className: "rot-backname" }, "SWAYAMS"))));
 }
 function QuoteBand() {
   return /* @__PURE__ */ N.createElement("section", { className: "quote-band", "aria-label": "quote" }, /* @__PURE__ */ N.createElement("p", { className: "quote-line" }, /* @__PURE__ */ N.createElement("span", { className: "q-line q1" }, "but often times"), /* @__PURE__ */ N.createElement("span", { className: "q-line q2" }, "better than"), /* @__PURE__ */ N.createElement("span", { className: "q-line q3" }, "master of one")));
@@ -12170,7 +12162,7 @@ function BookShelf() {
           },
           "aria-label": `${it.name} - ${i + 1} of ${total}`
         },
-        /* @__PURE__ */ N.createElement("div", { className: "sb-inner" }, /* @__PURE__ */ N.createElement("div", { className: "sb-page-in", "aria-hidden": !(opened && i === cur) }, /* @__PURE__ */ N.createElement("span", { className: "sb-from" }, it.from), /* @__PURE__ */ N.createElement("h4", null, it.name), /* @__PURE__ */ N.createElement("p", null, it.alt), /* @__PURE__ */ N.createElement("button", { type: "button", className: "sb-view", tabIndex: opened && i === cur ? 0 : -1, onClick: (e) => {
+        /* @__PURE__ */ N.createElement("div", { className: "sb-inner" }, /* @__PURE__ */ N.createElement("div", { className: "sb-page-in", "aria-hidden": !(opened && i === cur) }, /* @__PURE__ */ N.createElement("span", { className: "sb-from" }, it.from, /* @__PURE__ */ N.createElement("i", { className: "sb-idx" }, "n\xB0 ", String(i + 1).padStart(2, "0"), " / ", String(total).padStart(2, "0"))), /* @__PURE__ */ N.createElement("h4", null, it.name), /* @__PURE__ */ N.createElement("p", null, it.alt), /* @__PURE__ */ N.createElement("img", { className: "sb-mini", src: it.src, alt: "", draggable: "false", loading: "lazy" }), /* @__PURE__ */ N.createElement("button", { type: "button", className: "sb-view", tabIndex: opened && i === cur ? 0 : -1, onClick: (e) => {
           e.stopPropagation();
           bump();
           open(ln.map((x) => ({ src: x.src, alt: x.alt })), i, "the gallery");

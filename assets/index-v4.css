@@ -2875,9 +2875,29 @@ body {
     cursor: grab;
     -webkit-user-select: none;
     user-select: none;
-    transform: rotate(var(--rz, 45deg));
-    will-change: transform;
+    perspective: 1100px;
     filter: drop-shadow(10px 12px 0 rgba(26, 26, 26, .22))
+}
+
+.rot-card-v3 .rot-yaw {
+    position: absolute;
+    inset: 0;
+    transform-style: preserve-3d;
+    transform: rotate(-7deg) rotateY(var(--ry, 0deg));
+    will-change: transform
+}
+
+.rot-card-v3 .rot-face.rot-cardback {
+    transform: rotateY(180deg);
+    background: repeating-linear-gradient(45deg, #c1272d 0 14px, #a8101f 14px 28px)
+}
+
+.rot-card-v3 .rot-backname {
+    color: #fdf6e0;
+    font-family: var(--display);
+    font-weight: 800;
+    letter-spacing: .3em;
+    font-size: clamp(16px, 1.8vw, 22px)
 }
 
 .rot-card-v3:active {
@@ -2893,7 +2913,9 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center
+    justify-content: center;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden
 }
 
 .rot-card-v3 .rot-big {
@@ -3102,7 +3124,7 @@ h1, h2, h3, h4,
 }
 
 .hero-v5 .rot-card-v3 {
-    transform: rotateX(52deg) rotateZ(var(--rz, 45deg));
+    transform: none;
     transform-style: preserve-3d;
     width: min(230px, 52vw, 30vh)
 }
@@ -3342,4 +3364,38 @@ h1, h2, h3, h4,
 
 .hero-v5 .rot-card-v3 {
     margin-top: clamp(-110px, -9vh, -60px)
+}
+
+/* v5.8: fill the opened book page (mini print + index), mobile card clears tagline */
+.sb-page-in .sb-from {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px
+}
+
+.sb-page-in .sb-idx {
+    font-style: normal;
+    color: var(--ink);
+    opacity: .55;
+    letter-spacing: .12em
+}
+
+.sb-page-in .sb-mini {
+    width: 100%;
+    flex: 1 1 auto;
+    min-height: 90px;
+    object-fit: cover;
+    object-position: top center;
+    border: 3px solid var(--ink);
+    border-radius: 3px;
+    background: #fff;
+    transform: rotate(-1deg);
+    box-shadow: 3px 4px 0 rgba(26, 26, 26, .18)
+}
+
+@media (max-width: 640px) {
+    .hero-v5 .rot-card-v3 {
+        margin-top: 6px
+    }
 }
