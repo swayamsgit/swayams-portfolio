@@ -3334,3 +3334,12 @@ h1, h2, h3, h4,
         width: clamp(210px, 64vw, 280px)
     }
 }
+
+/* v5.7b: more deliberate card-to-band clearance across the full rotation */
+.hero-v5 {
+    padding-bottom: clamp(120px, 15vh, 170px)
+}
+
+.hero-v5 .rot-card-v3 {
+    margin-top: clamp(-110px, -9vh, -60px)
+}
