@@ -11575,7 +11575,11 @@ function SideRail() {
   N.useEffect(() => {
     const set = () => {
       const main = document.querySelector(".poster main") || document.querySelector(".poster");
-      if (main) document.documentElement.style.setProperty("--bleed-l", main.getBoundingClientRect().left + "px");
+      if (main) {
+        const r = main.getBoundingClientRect();
+        document.documentElement.style.setProperty("--bleed-l", r.left + "px");
+        document.documentElement.style.setProperty("--bleed-cx", r.left + r.width / 2 - window.innerWidth / 2 + "px");
+      }
     };
     set();
     window.addEventListener("resize", set);
@@ -11984,12 +11988,17 @@ function RotCard() {
       { sym: "\u2666", color: "#e0a62e" },
       { sym: "\u2663", color: "#4f772d" }
     ];
+    const RANKS = [
+      { r: "J", w: "jack" },
+      { r: "K", w: "king" }
+    ];
     const el = ref.current;
     if (!el) return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    let yaw = 0, vel = 0, dragging = false, lastX = 0, curSuit = -1, raf = 0, lastT = 0;
+    let yaw = 0, vel = 0, dragging = false, lastX = 0, curSuit = -1, curRank = -1, raf = 0, lastT = 0;
     const paint = () => {
-      const si = (Math.floor(yaw / 360) % 4 + 4) % 4;
+      const rev = (Math.floor((yaw + 180) / 360) % 4 + 4) % 4;
+      const si = rev;
       if (si !== curSuit) {
         curSuit = si;
         const suit = SUITS[si];
@@ -11997,6 +12006,15 @@ function RotCard() {
         el.querySelectorAll(".rot-suit").forEach((n) => {
           n.textContent = suit.sym;
         });
+      }
+      const ri = rev % 2;
+      if (ri !== curRank) {
+        curRank = ri;
+        el.querySelectorAll(".rot-rank").forEach((n) => {
+          n.textContent = RANKS[ri].r;
+        });
+        const w = el.querySelector(".rot-word");
+        if (w) w.textContent = RANKS[ri].w;
       }
       el.style.setProperty("--ry", yaw + "deg");
     };
@@ -12044,10 +12062,117 @@ function RotCard() {
       window.removeEventListener("pointercancel", up);
     };
   }, []);
-  return /* @__PURE__ */ N.createElement("div", { className: "rot-card rot-card-v3", ref, style: { "--ry": "0deg", "--fc": "#c1272d", touchAction: "pan-y" }, role: "img", "aria-label": "spinning jack playing card - drag to turn" }, /* @__PURE__ */ N.createElement("div", { className: "rot-yaw" }, /* @__PURE__ */ N.createElement("div", { className: "rot-face" }, /* @__PURE__ */ N.createElement("span", { className: "rot-corner rot-tl" }, "J ", /* @__PURE__ */ N.createElement("i", { className: "rot-suit" }, "\u2665")), /* @__PURE__ */ N.createElement("span", { className: "rot-big" }, "J", /* @__PURE__ */ N.createElement("i", { className: "rot-suit" }, "\u2665")), /* @__PURE__ */ N.createElement("span", { className: "rot-word" }, "jack"), /* @__PURE__ */ N.createElement("span", { className: "rot-corner rot-br" }, "J ", /* @__PURE__ */ N.createElement("i", { className: "rot-suit" }, "\u2665"))), /* @__PURE__ */ N.createElement("div", { className: "rot-face rot-cardback" }, /* @__PURE__ */ N.createElement("span", { className: "rot-backname" }, "SWAYAMS"))));
+  return /* @__PURE__ */ N.createElement("div", { className: "rot-card rot-card-v3", ref, style: { "--ry": "0deg", "--fc": "#c1272d", touchAction: "pan-y" }, role: "img", "aria-label": "spinning playing card - jack turns to king as it rotates, drag to turn" }, /* @__PURE__ */ N.createElement("div", { className: "rot-yaw" }, /* @__PURE__ */ N.createElement("div", { className: "rot-face" }, /* @__PURE__ */ N.createElement("span", { className: "rot-corner rot-tl" }, /* @__PURE__ */ N.createElement("i", { className: "rot-rank" }, "J"), " ", /* @__PURE__ */ N.createElement("i", { className: "rot-suit" }, "\u2665")), /* @__PURE__ */ N.createElement("span", { className: "rot-big" }, /* @__PURE__ */ N.createElement("i", { className: "rot-rank" }, "J"), /* @__PURE__ */ N.createElement("i", { className: "rot-suit" }, "\u2665")), /* @__PURE__ */ N.createElement("span", { className: "rot-word" }, "jack"), /* @__PURE__ */ N.createElement("span", { className: "rot-corner rot-br" }, /* @__PURE__ */ N.createElement("i", { className: "rot-rank" }, "J"), " ", /* @__PURE__ */ N.createElement("i", { className: "rot-suit" }, "\u2665"))), /* @__PURE__ */ N.createElement("div", { className: "rot-face rot-cardback" }, /* @__PURE__ */ N.createElement("span", { className: "rot-backname" }, "SWAYAMS"))));
 }
 function QuoteBand() {
   return /* @__PURE__ */ N.createElement("section", { className: "quote-band", "aria-label": "quote" }, /* @__PURE__ */ N.createElement("p", { className: "quote-line" }, /* @__PURE__ */ N.createElement("span", { className: "q-line q1" }, "but often times"), /* @__PURE__ */ N.createElement("span", { className: "q-line q2" }, "better than"), /* @__PURE__ */ N.createElement("span", { className: "q-line q3" }, "master of one")));
+}
+function PosterWall() {
+  const open = N.useContext(aa);
+  const total = ln.length;
+  const step = 360 / total;
+  const [pos, setPos] = N.useState(Math.floor(total / 2));
+  const [dragging, setDragging] = N.useState(false);
+  const drag = N.useRef(null);
+  const stage = N.useRef(null);
+  const [fw, setFw] = N.useState(300);
+  const [rMult, setRMult] = N.useState(1.9);
+  N.useEffect(() => {
+    const m = () => {
+      const el = stage.current;
+      if (!el) return;
+      const w = el.offsetWidth;
+      setFw(w < 700 ? Math.round(Math.min(Math.max(w * 0.52, 190), 260)) : Math.round(Math.min(Math.max(w * 0.27, 240), 380)));
+      setRMult(w < 700 ? 1.2 : 1.9);
+    };
+    m();
+    window.addEventListener("resize", m);
+    return () => window.removeEventListener("resize", m);
+  }, []);
+  const R = Math.round(fw * rMult / (2 * Math.sin(Math.PI / total)));
+  const cur = (Math.round(pos) % total + total) % total;
+  const VARY = [1, 0.84, 1.14, 0.92, 1.07, 0.88, 1.1, 0.95, 1.02];
+  const ASPECT = ["3 / 4", "4 / 5", "2 / 3", "3 / 4", "5 / 6", "3 / 4", "4 / 5", "2 / 3", "3 / 4"];
+  const stepBy = N.useCallback((d) => {
+    setPos((p) => Math.round(p) + d);
+  }, []);
+  N.useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === "ArrowLeft") stepBy(-1);
+      if (e.key === "ArrowRight") stepBy(1);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [stepBy]);
+  const onDown = (e) => {
+    setDragging(true);
+    drag.current = { x: e.clientX, start: pos, moved: false };
+    try {
+      e.target.setPointerCapture(e.pointerId);
+    } catch {
+    }
+  };
+  const onMove = (e) => {
+    if (!drag.current) return;
+    const dx = e.clientX - drag.current.x;
+    if (Math.abs(dx) > 6) drag.current.moved = true;
+    setPos(drag.current.start - dx / 170);
+  };
+  const onUp = () => {
+    if (!drag.current) return;
+    drag.current = null;
+    setDragging(false);
+    setPos((p) => Math.round(p));
+  };
+  const clickFrame = (i) => {
+    if (drag.current && drag.current.moved) return;
+    if (i === cur) {
+      open(ln.map((x) => ({ src: x.src, alt: x.alt })), i, "the gallery");
+    } else {
+      setPos((p) => {
+        const r = Math.round(p);
+        const half = Math.floor(total / 2);
+        const d = ((i - r) % total + total + half) % total - half;
+        return r + d;
+      });
+    }
+  };
+  return /* @__PURE__ */ N.createElement("div", { className: "wall-wrap" }, /* @__PURE__ */ N.createElement(
+    "div",
+    {
+      className: "wall-stage" + (dragging ? " dragging" : ""),
+      ref: stage,
+      onPointerDown: onDown,
+      onPointerMove: onMove,
+      onPointerUp: onUp,
+      onPointerCancel: onUp,
+      role: "region",
+      "aria-label": "poster wall - drag or use arrow keys to walk the wall"
+    },
+    /* @__PURE__ */ N.createElement("div", { className: "wall-ring", style: { transform: `translateZ(${-R}px) rotateY(${-pos * step}deg)` } }, ln.map((it, i) => {
+      const rel = ((i - pos) % total + total + total / 2) % total - total / 2;
+      const ang = rel * step;
+      const hidden = Math.abs(ang) > 102;
+      return /* @__PURE__ */ N.createElement(
+        "figure",
+        {
+          key: it.src,
+          className: "wall-frame" + (i === cur ? " cur" : ""),
+          style: {
+            width: Math.round(fw * VARY[i % VARY.length]),
+            aspectRatio: ASPECT[i % ASPECT.length],
+            transform: `translate(-50%, -50%) rotateY(${i * step}deg) translateZ(${R}px)`,
+            opacity: hidden ? 0 : 1,
+            filter: `brightness(${Math.max(0.82, 1 - Math.abs(rel) * 0.05)})`
+          },
+          "aria-hidden": hidden || void 0,
+          onClick: () => clickFrame(i),
+          "aria-label": `${it.name} - ${i + 1} of ${total}`
+        },
+        /* @__PURE__ */ N.createElement("div", { className: "wf-box" }, /* @__PURE__ */ N.createElement("div", { className: "wf-face wf-front" }, /* @__PURE__ */ N.createElement("img", { src: it.src, alt: it.alt, draggable: "false", loading: "lazy" })), /* @__PURE__ */ N.createElement("div", { className: "wf-face wf-left", "aria-hidden": "true" }), /* @__PURE__ */ N.createElement("div", { className: "wf-face wf-right", "aria-hidden": "true" }), /* @__PURE__ */ N.createElement("div", { className: "wf-face wf-top", "aria-hidden": "true" }), /* @__PURE__ */ N.createElement("div", { className: "wf-face wf-bottom", "aria-hidden": "true" }))
+      );
+    }))
+  ), /* @__PURE__ */ N.createElement("div", { className: "wall-meta" }, /* @__PURE__ */ N.createElement("span", { className: "wall-barcode", "aria-hidden": "true" }), /* @__PURE__ */ N.createElement("p", { className: "wall-count" }, "the wall - ", String(cur + 1).padStart(3, "0"), " / ", String(total).padStart(3, "0")), /* @__PURE__ */ N.createElement("p", { className: "wall-hint" }, "drag \xB7 walk \xB7 closer \u2192")));
 }
 function BookShelf() {
   const open = N.useContext(aa);
@@ -12186,7 +12311,7 @@ function HomeV5() {
   const posters = sa.find((f) => f.id === "posters");
   const letterman = sa.find((f) => f.id === "letterman-25");
   const brandCount = sa.filter((f) => f.id !== "posters").length;
-  return /* @__PURE__ */ N.createElement(N.Fragment, null, /* @__PURE__ */ N.createElement("header", { className: "hero hero-v5" }, /* @__PURE__ */ N.createElement("h1", { className: "hero-big" }, /* @__PURE__ */ N.createElement("span", { className: "hb-hi" }, "\u092E\u0948\u0902"), /* @__PURE__ */ N.createElement("span", { className: "hb-name" }, "SWAYAMS")), /* @__PURE__ */ N.createElement("p", { className: "hero-tag" }, "i'm a jack of all trades, master of none"), /* @__PURE__ */ N.createElement(RotCard, null)), /* @__PURE__ */ N.createElement(QuoteBand, null), /* @__PURE__ */ N.createElement(SectionF, { id: "work", title: /* @__PURE__ */ N.createElement(N.Fragment, null, /* @__PURE__ */ N.createElement("span", { className: "hdev" }, "\u092E\u0947\u0930\u093E"), " WORK:"), sticker: "pick a category", flat: true }, /* @__PURE__ */ N.createElement("div", { className: "cat-grid" }, /* @__PURE__ */ N.createElement(LinkC, { to: "/uiux", className: "cat-card tilt-1" }, /* @__PURE__ */ N.createElement("img", { src: Pd[1].src, alt: "Moneo UI screens", loading: "lazy" }), /* @__PURE__ */ N.createElement("span", { className: "cat-name" }, "ui/ux")), /* @__PURE__ */ N.createElement(LinkC, { to: "/posters", className: "cat-card tilt-2" }, /* @__PURE__ */ N.createElement("img", { src: posters.items[posters.cover || 0].src, alt: posters.items[0].alt, loading: "lazy" }), /* @__PURE__ */ N.createElement("span", { className: "cat-name" }, "posters")), /* @__PURE__ */ N.createElement(LinkC, { to: "/branding", className: "cat-card tilt-3" }, /* @__PURE__ */ N.createElement("img", { src: letterman.items[letterman.cover || 0].src, alt: letterman.items[0].alt, loading: "lazy" }), /* @__PURE__ */ N.createElement("span", { className: "cat-name" }, "branding")), /* @__PURE__ */ N.createElement(LinkC, { to: "/video", className: "cat-card tilt-4" }, /* @__PURE__ */ N.createElement("img", { src: Ul[0], alt: "E-Summit reel still", loading: "lazy" }), /* @__PURE__ */ N.createElement("span", { className: "cat-name" }, "video editing")))), /* @__PURE__ */ N.createElement(SectionC, { id: "gallery", title: "the gallery", sticker: "walk the wall" }, /* @__PURE__ */ N.createElement("p", { className: "body-copy" }, "\u0905\u092A\u0928\u0940 favourite \u091A\u0940\u091C\u093C\u0947\u0902, \u090F\u0915 \u0932\u0902\u092C\u0940 \u0926\u0940\u0935\u093E\u0930 \u092A\u0947. drag to walk the wall - click a frame to step closer."), /* @__PURE__ */ N.createElement(BookShelf, null)), /* @__PURE__ */ N.createElement(GreetBand, null));
+  return /* @__PURE__ */ N.createElement(N.Fragment, null, /* @__PURE__ */ N.createElement("div", { className: "hero-break", "aria-hidden": "true" }), /* @__PURE__ */ N.createElement("header", { className: "hero hero-v5" }, /* @__PURE__ */ N.createElement("h1", { className: "hero-big" }, /* @__PURE__ */ N.createElement("span", { className: "hb-hi" }, "\u092E\u0948\u0902"), /* @__PURE__ */ N.createElement("span", { className: "hb-name" }, "SWAYAMS")), /* @__PURE__ */ N.createElement("p", { className: "hero-tag" }, "i'm a jack of all trades, master of none"), /* @__PURE__ */ N.createElement(RotCard, null)), /* @__PURE__ */ N.createElement(QuoteBand, null), /* @__PURE__ */ N.createElement(SectionF, { id: "work", title: /* @__PURE__ */ N.createElement(N.Fragment, null, /* @__PURE__ */ N.createElement("span", { className: "hdev" }, "\u092E\u0947\u0930\u093E"), " WORK:"), sticker: "pick a category", flat: true }, /* @__PURE__ */ N.createElement("div", { className: "cat-grid" }, /* @__PURE__ */ N.createElement(LinkC, { to: "/uiux", className: "cat-card tilt-1" }, /* @__PURE__ */ N.createElement("img", { src: Pd[1].src, alt: "Moneo UI screens", loading: "lazy" }), /* @__PURE__ */ N.createElement("span", { className: "cat-name" }, "ui/ux")), /* @__PURE__ */ N.createElement(LinkC, { to: "/posters", className: "cat-card tilt-2" }, /* @__PURE__ */ N.createElement("img", { src: posters.items[posters.cover || 0].src, alt: posters.items[0].alt, loading: "lazy" }), /* @__PURE__ */ N.createElement("span", { className: "cat-name" }, "posters")), /* @__PURE__ */ N.createElement(LinkC, { to: "/branding", className: "cat-card tilt-3" }, /* @__PURE__ */ N.createElement("img", { src: letterman.items[letterman.cover || 0].src, alt: letterman.items[0].alt, loading: "lazy" }), /* @__PURE__ */ N.createElement("span", { className: "cat-name" }, "branding")), /* @__PURE__ */ N.createElement(LinkC, { to: "/video", className: "cat-card tilt-4" }, /* @__PURE__ */ N.createElement("img", { src: Ul[0], alt: "E-Summit reel still", loading: "lazy" }), /* @__PURE__ */ N.createElement("span", { className: "cat-name" }, "video editing")))), /* @__PURE__ */ N.createElement(SectionC, { id: "gallery", title: "the gallery", sticker: "walk the wall" }, /* @__PURE__ */ N.createElement("p", { className: "body-copy" }, "\u0905\u092A\u0928\u0940 favourite \u091A\u0940\u091C\u093C\u0947\u0902, \u090F\u0915 \u0932\u0902\u092C\u0940 \u0926\u0940\u0935\u093E\u0930 \u092A\u0947. drag to walk the wall - click a frame to step closer."), /* @__PURE__ */ N.createElement(PosterWall, null)), /* @__PURE__ */ N.createElement(GreetBand, null));
 }
 const CIcon = {
   phone: /* @__PURE__ */ N.createElement("svg", { viewBox: "0 0 24 24", width: "18", height: "18", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round" }, /* @__PURE__ */ N.createElement("path", { d: "M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" })),
@@ -12197,7 +12322,7 @@ const CIcon = {
   file: /* @__PURE__ */ N.createElement("svg", { viewBox: "0 0 24 24", width: "18", height: "18", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round" }, /* @__PURE__ */ N.createElement("path", { d: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" }), /* @__PURE__ */ N.createElement("path", { d: "M14 2v6h6" }), /* @__PURE__ */ N.createElement("path", { d: "M16 13H8" }), /* @__PURE__ */ N.createElement("path", { d: "M16 17H8" }))
 };
 function ContactV5() {
-  return /* @__PURE__ */ N.createElement(SectionC, { id: "contact", title: "say hi", sticker: "contact" }, /* @__PURE__ */ N.createElement("div", { className: "contact-grid" }, /* @__PURE__ */ N.createElement("a", { className: "chip chip-link contact-chip", href: "tel:+917681001527" }, CIcon.phone, /* @__PURE__ */ N.createElement("span", null, "+91 76810 01527")), /* @__PURE__ */ N.createElement("a", { className: "chip chip-link contact-chip", href: "mailto:swayamsdeep444@gmail.com" }, CIcon.mail, /* @__PURE__ */ N.createElement("span", null, "swayamsdeep444@gmail.com")), /* @__PURE__ */ N.createElement("a", { className: "chip chip-link contact-chip", href: "https://www.instagram.com/auti__sm", target: "_blank", rel: "noreferrer" }, CIcon.instagram, /* @__PURE__ */ N.createElement("span", null, "instagram - @auti__sm")), /* @__PURE__ */ N.createElement("a", { className: "chip chip-link contact-chip", href: "https://www.linkedin.com/in/swayamsmohanty042004", target: "_blank", rel: "noreferrer" }, CIcon.linkedin, /* @__PURE__ */ N.createElement("span", null, "linkedin - swayamsmohanty042004")), /* @__PURE__ */ N.createElement("a", { className: "chip chip-link contact-chip", href: "https://github.com/swayamsgit", target: "_blank", rel: "noreferrer" }, CIcon.github, /* @__PURE__ */ N.createElement("span", null, "github - swayamsgit")), /* @__PURE__ */ N.createElement("a", { className: "chip chip-link contact-chip", href: "/assets/swayams-mohanty-resume.pdf", download: "swayams-mohanty-resume.pdf" }, CIcon.file, /* @__PURE__ */ N.createElement("span", null, "resume - pdf"))));
+  return /* @__PURE__ */ N.createElement(SectionC, { id: "contact", title: "say hi", sticker: "contact" }, /* @__PURE__ */ N.createElement("div", { className: "contact-grid" }, /* @__PURE__ */ N.createElement("a", { className: "chip chip-link contact-chip", href: "tel:+917681001527" }, CIcon.phone, /* @__PURE__ */ N.createElement("span", null, "+91 76810 01527")), /* @__PURE__ */ N.createElement("a", { className: "chip chip-link contact-chip", href: "mailto:swayamsdeep444@gmail.com" }, CIcon.mail, /* @__PURE__ */ N.createElement("span", null, "swayamsdeep444@gmail.com")), /* @__PURE__ */ N.createElement("a", { className: "chip chip-link contact-chip", href: "https://www.instagram.com/auti__sm", target: "_blank", rel: "noreferrer" }, CIcon.instagram, /* @__PURE__ */ N.createElement("span", null, "instagram - @auti__sm")), /* @__PURE__ */ N.createElement("a", { className: "chip chip-link contact-chip", href: "https://www.linkedin.com/in/swayamsmohanty042004", target: "_blank", rel: "noreferrer" }, CIcon.linkedin, /* @__PURE__ */ N.createElement("span", null, "linkedin - swayamsmohanty042004")), /* @__PURE__ */ N.createElement("a", { className: "chip chip-link contact-chip", href: "https://github.com/swayamsgit", target: "_blank", rel: "noreferrer" }, CIcon.github, /* @__PURE__ */ N.createElement("span", null, "github - swayamsgit"))));
 }
 function WorkPageV5() {
   const open = N.useContext(aa);
@@ -12250,7 +12375,6 @@ function OnRepeat() {
     /* @__PURE__ */ N.createElement("span", { className: "or-play", "aria-hidden": "true" }, i === cur ? "\u25B6" : "\xB7")
   )))));
 }
-
 function ay() {
     const [e, t] = N.useState(null), [n, r] = N.useState(() => sessionStorage.getItem("sw-intro") === "1"), l = (i, o, s) => t({
         photos: i.map(a => ({
