@@ -404,38 +404,31 @@ function RotCard() {
     const el = ref.current;
     if (!el) return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    let angle = 45, vel = 0, dragging = false, lastA = 0, curSuit = -1, raf = 0, cx = 0, cy = 0;
-    const center = () => {
-      const r = el.getBoundingClientRect();
-      cx = r.left + r.width / 2;
-      cy = r.top + r.height / 2;
-    };
-    const angOf = (e) => Math.atan2(e.clientY - cy, e.clientX - cx) * 180 / Math.PI;
+    let yaw = 0, vel = 0, dragging = false, lastX = 0, curSuit = -1, raf = 0, lastT = 0;
     const paint = () => {
-      const si = ((Math.floor(angle / 360) % 4) + 4) % 4;
+      const si = ((Math.floor(yaw / 360) % 4) + 4) % 4;
       if (si !== curSuit) {
         curSuit = si;
         const suit = SUITS[si];
         el.style.setProperty("--fc", suit.color);
         el.querySelectorAll(".rot-suit").forEach((n) => { n.textContent = suit.sym; });
       }
-      el.style.setProperty("--rz", angle + "deg");
+      el.style.setProperty("--ry", yaw + "deg");
     };
-    const tick = () => {
-      if (!dragging) { angle += 0.35 + vel; vel *= 0.95; if (Math.abs(vel) < 0.001) vel = 0; }
+    const tick = (t) => {
+      const dt = lastT ? Math.min(t - lastT, 64) : 16;
+      lastT = t;
+      if (!dragging) { yaw += dt * 0.1 + vel; vel *= 0.95; if (Math.abs(vel) < 0.001) vel = 0; }
       paint();
       raf = requestAnimationFrame(tick);
     };
-    const down = (e) => { dragging = true; center(); lastA = angOf(e); vel = 0; try { el.setPointerCapture(e.pointerId); } catch {} };
+    const down = (e) => { dragging = true; lastX = e.clientX; vel = 0; try { el.setPointerCapture(e.pointerId); } catch {} };
     const move = (e) => {
       if (!dragging) return;
-      const a = angOf(e);
-      let d = a - lastA;
-      if (d > 180) d -= 360;
-      if (d < -180) d += 360;
-      lastA = a;
-      angle += d;
-      vel = d * 0.15;
+      const dx = e.clientX - lastX;
+      lastX = e.clientX;
+      yaw += dx * 0.5;
+      vel = dx * 0.06;
       paint();
     };
     const up = () => { dragging = false; };
@@ -453,12 +446,15 @@ function RotCard() {
     };
   }, []);
   return (
-    <div className="rot-card rot-card-v3" ref={ref} style={{ "--rz": "45deg", "--fc": "#c1272d", touchAction: "pan-y" }} role="img" aria-label="spinning jack playing card - drag to turn">
-      <div className="rot-face">
-        <span className="rot-corner rot-tl">J <i className="rot-suit">♥</i></span>
-        <span className="rot-big">J<i className="rot-suit">♥</i></span>
-        <span className="rot-word">jack</span>
-        <span className="rot-corner rot-br">J <i className="rot-suit">♥</i></span>
+    <div className="rot-card rot-card-v3" ref={ref} style={{ "--ry": "0deg", "--fc": "#c1272d", touchAction: "pan-y" }} role="img" aria-label="spinning jack playing card - drag to turn">
+      <div className="rot-yaw">
+        <div className="rot-face">
+          <span className="rot-corner rot-tl">J <i className="rot-suit">♥</i></span>
+          <span className="rot-big">J<i className="rot-suit">♥</i></span>
+          <span className="rot-word">jack</span>
+          <span className="rot-corner rot-br">J <i className="rot-suit">♥</i></span>
+        </div>
+        <div className="rot-face rot-cardback"><span className="rot-backname">SWAYAMS</span></div>
       </div>
     </div>
   );
@@ -484,6 +480,14 @@ function BookShelf() {
   const wrap = N.useRef(null);
   const clamp = (v) => Math.max(0, Math.min(total - 1, v));
   const wrapPos = (v) => ((v % total) + total) % total;
+  const [opened, setOpened] = N.useState(false);
+  const [narrow, setNarrow] = N.useState(() => window.innerWidth < 700);
+  N.useEffect(() => {
+    const onR = () => setNarrow(window.innerWidth < 700);
+    window.addEventListener("resize", onR);
+    return () => window.removeEventListener("resize", onR);
+  }, []);
+  const goto = (fn) => { setOpened(false); setPos(fn); };
   const onDown = (e) => {
     bump();
     drag.current = { x: e.clientX, start: pos, moved: false };
@@ -494,16 +498,16 @@ function BookShelf() {
     const w = wrap.current.offsetWidth;
     const dx = e.clientX - drag.current.x;
     if (Math.abs(dx) > 6) drag.current.moved = true;
-    setPos(clamp(drag.current.start - dx / (w * 0.22)));
+    goto(() => clamp(drag.current.start - dx / (w * 0.22)));
   };
   const onUp = () => {
     if (!drag.current) return;
     const wasMoved = drag.current.moved;
     drag.current = null;
-    setPos((p) => Math.round(clamp(p)));
+    goto((p) => Math.round(clamp(p)));
     return wasMoved;
   };
-  const step = N.useCallback((d) => { bump(); setPos((p) => Math.round(clamp(p + d))); }, [total]);
+  const step = N.useCallback((d) => { bump(); setOpened(false); setPos((p) => Math.round(clamp(p + d))); }, [total]);
   N.useEffect(() => {
     const onKey = (e) => {
       if (e.key === "ArrowLeft") step(-1);
@@ -520,6 +524,7 @@ function BookShelf() {
       if (Date.now() - idle.current < 5000) return;
       setPos((p) => {
         const nx = Math.round(p) + 1;
+        setOpened(false);
         return nx >= total ? 0 : nx;
       });
     }, 3400);
@@ -545,9 +550,12 @@ function BookShelf() {
             const off = i - pos;
             const ab = Math.abs(off);
             if (ab > 3.4) return null;
+            const spread = narrow ? 70 : 114;
+            const depth = narrow ? 260 : 185;
+            const tilt = narrow ? 24 : 22;
             const st = {
-              transform: `translate(-50%, -50%) translateX(${off * 88}%) translateZ(${-ab * 250}px) rotateY(${-off * 28}deg)`,
-              filter: `brightness(${Math.max(.72, 1 - ab * .12)})`,
+              transform: `translate(-50%, -50%) translateX(${off * spread}%) translateZ(${-ab * depth}px) rotateY(${-off * tilt}deg)`,
+              filter: `brightness(${Math.max(.78, 1 - ab * .09)})`,
               zIndex: 100 - Math.round(ab * 10),
               opacity: ab > 2.8 ? 0 : 1
             };
@@ -558,15 +566,25 @@ function BookShelf() {
                 style={st}
                 onClick={() => {
                   if (drag.current && drag.current.moved) return;
-                  if (i === cur) open(ln.map((x) => ({ src: x.src, alt: x.alt })), i, "the gallery");
-                  else setPos(i);
+                  if (i === cur) { bump(); setOpened((o) => !o); }
+                  else goto(() => i);
                 }}
                 aria-label={`${it.name} - ${i + 1} of ${total}`}
               >
                 <div className="sb-inner">
-                  <div className="sb-spine" aria-hidden="true"><span>{it.name}</span></div>
+                  <div className="sb-page-in" aria-hidden={!(opened && i === cur)}>
+                    <span className="sb-from">{it.from}<i className="sb-idx">n° {String(i + 1).padStart(2, "0")} / {String(total).padStart(2, "0")}</i></span>
+                    <h4>{it.name}</h4>
+                    <p>{it.alt}</p>
+                    <img className="sb-mini" src={it.src} alt="" draggable="false" loading="lazy" />
+                    <button type="button" className="sb-view" tabIndex={opened && i === cur ? 0 : -1} onClick={(e) => { e.stopPropagation(); bump(); open(ln.map((x) => ({ src: x.src, alt: x.alt })), i, "the gallery"); }}>view full poster</button>
+                  </div>
+                  <div className={`sb-cover${opened && i === cur ? " open" : ""}`}>
+                    <div className="sb-spine" aria-hidden="true"><span>{it.name}</span></div>
+                    <img className="sb-front" src={it.src} alt={it.alt} draggable="false" loading="lazy" />
+                    <div className="sb-cover-back" aria-hidden="true"><span>{it.name}</span></div>
+                  </div>
                   <div className="sb-pages" aria-hidden="true"></div>
-                  <img className="sb-front" src={it.src} alt={it.alt} draggable="false" loading="lazy" />
                 </div>
               </figure>
             );
