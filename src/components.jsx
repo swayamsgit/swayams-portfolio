@@ -20,7 +20,11 @@ function SideRail() {
   N.useEffect(() => {
     const set = () => {
       const main = document.querySelector(".poster main") || document.querySelector(".poster");
-      if (main) document.documentElement.style.setProperty("--bleed-l", main.getBoundingClientRect().left + "px");
+      if (main) {
+        const r = main.getBoundingClientRect();
+        document.documentElement.style.setProperty("--bleed-l", r.left + "px");
+        document.documentElement.style.setProperty("--bleed-cx", (r.left + r.width / 2 - window.innerWidth / 2) + "px");
+      }
     };
     set();
     window.addEventListener("resize", set);
@@ -401,17 +405,29 @@ function RotCard() {
       { sym: "♦", color: "#e0a62e" },
       { sym: "♣", color: "#4f772d" }
     ];
+    const RANKS = [
+      { r: "J", w: "jack" },
+      { r: "K", w: "king" }
+    ];
     const el = ref.current;
     if (!el) return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    let yaw = 0, vel = 0, dragging = false, lastX = 0, curSuit = -1, raf = 0, lastT = 0;
+    let yaw = 0, vel = 0, dragging = false, lastX = 0, curSuit = -1, curRank = -1, raf = 0, lastT = 0;
     const paint = () => {
-      const si = ((Math.floor(yaw / 360) % 4) + 4) % 4;
+      const rev = ((Math.floor((yaw + 180) / 360) % 4) + 4) % 4; // v5.12.15: flip while back-facing so new rank is revealed only after the turn completes
+      const si = rev;
       if (si !== curSuit) {
         curSuit = si;
         const suit = SUITS[si];
         el.style.setProperty("--fc", suit.color);
         el.querySelectorAll(".rot-suit").forEach((n) => { n.textContent = suit.sym; });
+      }
+      const ri = rev % 2;
+      if (ri !== curRank) {
+        curRank = ri;
+        el.querySelectorAll(".rot-rank").forEach((n) => { n.textContent = RANKS[ri].r; });
+        const w = el.querySelector(".rot-word");
+        if (w) w.textContent = RANKS[ri].w;
       }
       el.style.setProperty("--ry", yaw + "deg");
     };
@@ -446,13 +462,13 @@ function RotCard() {
     };
   }, []);
   return (
-    <div className="rot-card rot-card-v3" ref={ref} style={{ "--ry": "0deg", "--fc": "#c1272d", touchAction: "pan-y" }} role="img" aria-label="spinning jack playing card - drag to turn">
+    <div className="rot-card rot-card-v3" ref={ref} style={{ "--ry": "0deg", "--fc": "#c1272d", touchAction: "pan-y" }} role="img" aria-label="spinning playing card - jack turns to king as it rotates, drag to turn">
       <div className="rot-yaw">
         <div className="rot-face">
-          <span className="rot-corner rot-tl">J <i className="rot-suit">♥</i></span>
-          <span className="rot-big">J<i className="rot-suit">♥</i></span>
+          <span className="rot-corner rot-tl"><i className="rot-rank">J</i> <i className="rot-suit">♥</i></span>
+          <span className="rot-big"><i className="rot-rank">J</i><i className="rot-suit">♥</i></span>
           <span className="rot-word">jack</span>
-          <span className="rot-corner rot-br">J <i className="rot-suit">♥</i></span>
+          <span className="rot-corner rot-br"><i className="rot-rank">J</i> <i className="rot-suit">♥</i></span>
         </div>
         <div className="rot-face rot-cardback"><span className="rot-backname">SWAYAMS</span></div>
       </div>
@@ -469,6 +485,124 @@ function QuoteBand() {
         <span className="q-line q3">master of one</span>
       </p>
     </section>
+  );
+}
+
+function PosterWall() {
+  const open = N.useContext(aa);
+  const total = ln.length;
+  const step = 360 / total;
+  const [pos, setPos] = N.useState(Math.floor(total / 2));
+  const [dragging, setDragging] = N.useState(false);
+  const drag = N.useRef(null);
+  const stage = N.useRef(null);
+  const [fw, setFw] = N.useState(300);
+  const [rMult, setRMult] = N.useState(1.9);
+  N.useEffect(() => {
+    const m = () => {
+      const el = stage.current;
+      if (!el) return;
+      const w = el.offsetWidth;
+      setFw(w < 700 ? Math.round(Math.min(Math.max(w * 0.52, 190), 260)) : Math.round(Math.min(Math.max(w * 0.27, 240), 380)));
+      setRMult(w < 700 ? 1.2 : 1.9);
+    };
+    m();
+    window.addEventListener("resize", m);
+    return () => window.removeEventListener("resize", m);
+  }, []);
+  const R = Math.round((fw * rMult) / (2 * Math.sin(Math.PI / total)));
+  const cur = ((Math.round(pos) % total) + total) % total;
+  const VARY = [1, .84, 1.14, .92, 1.07, .88, 1.1, .95, 1.02];
+  const ASPECT = ["3 / 4", "4 / 5", "2 / 3", "3 / 4", "5 / 6", "3 / 4", "4 / 5", "2 / 3", "3 / 4"];
+  const stepBy = N.useCallback((d) => { setPos((p) => Math.round(p) + d); }, []);
+  N.useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === "ArrowLeft") stepBy(-1);
+      if (e.key === "ArrowRight") stepBy(1);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [stepBy]);
+  const onDown = (e) => {
+    setDragging(true);
+    drag.current = { x: e.clientX, start: pos, moved: false };
+    try { e.target.setPointerCapture(e.pointerId); } catch {}
+  };
+  const onMove = (e) => {
+    if (!drag.current) return;
+    const dx = e.clientX - drag.current.x;
+    if (Math.abs(dx) > 6) drag.current.moved = true;
+    setPos(drag.current.start - dx / 170);
+  };
+  const onUp = () => {
+    if (!drag.current) return;
+    drag.current = null;
+    setDragging(false);
+    setPos((p) => Math.round(p));
+  };
+  const clickFrame = (i) => {
+    if (drag.current && drag.current.moved) return;
+    if (i === cur) {
+      open(ln.map((x) => ({ src: x.src, alt: x.alt })), i, "the gallery");
+    } else {
+      setPos((p) => {
+        const r = Math.round(p);
+        const half = Math.floor(total / 2);
+        const d = ((i - r) % total + total + half) % total - half;
+        return r + d;
+      });
+    }
+  };
+  return (
+    <div className="wall-wrap">
+      <div
+        className={"wall-stage" + (dragging ? " dragging" : "")}
+        ref={stage}
+        onPointerDown={onDown}
+        onPointerMove={onMove}
+        onPointerUp={onUp}
+        onPointerCancel={onUp}
+        role="region"
+        aria-label="poster wall - drag or use arrow keys to walk the wall"
+      >
+        <div className="wall-ring" style={{ transform: `translateZ(${-R}px) rotateY(${-pos * step}deg)` }}>
+          {ln.map((it, i) => {
+            const rel = ((i - pos) % total + total + total / 2) % total - total / 2;
+            const ang = rel * step;
+            const hidden = Math.abs(ang) > 102;
+            return (
+              <figure
+                key={it.src}
+                className={"wall-frame" + (i === cur ? " cur" : "")}
+                style={{
+                  width: Math.round(fw * VARY[i % VARY.length]),
+                  aspectRatio: ASPECT[i % ASPECT.length],
+                  transform: `translate(-50%, -50%) rotateY(${i * step}deg) translateZ(${R}px)`,
+                  opacity: hidden ? 0 : 1,
+                  filter: `brightness(${Math.max(.82, 1 - Math.abs(rel) * .05)})`
+                }}
+                aria-hidden={hidden || undefined}
+                onClick={() => clickFrame(i)}
+                aria-label={`${it.name} - ${i + 1} of ${total}`}
+              >
+                <div className="wf-box">
+                  <div className="wf-face wf-front"><img src={it.src} alt={it.alt} draggable="false" loading="lazy" /></div>
+                  <div className="wf-face wf-left" aria-hidden="true"></div>
+                  <div className="wf-face wf-right" aria-hidden="true"></div>
+                  <div className="wf-face wf-top" aria-hidden="true"></div>
+                  <div className="wf-face wf-bottom" aria-hidden="true"></div>
+                </div>
+              </figure>
+            );
+          })}
+        </div>
+      </div>
+      <div className="wall-meta">
+        <span className="wall-barcode" aria-hidden="true"></span>
+        <p className="wall-count">the wall - {String(cur + 1).padStart(3, "0")} / {String(total).padStart(3, "0")}</p>
+        <p className="wall-hint">drag · walk · closer →</p>
+      </div>
+    </div>
   );
 }
 
@@ -672,6 +806,7 @@ function HomeV5() {
   const brandCount = sa.filter((f) => f.id !== "posters").length;
   return (
     <>
+      <div className="hero-break" aria-hidden="true"></div>
       <header className="hero hero-v5">
         <h1 className="hero-big"><span className="hb-hi">मैं</span><span className="hb-name">SWAYAMS</span></h1>
         <p className="hero-tag">i'm a jack of all trades, master of none</p>
@@ -700,7 +835,7 @@ function HomeV5() {
       </SectionF>
       <SectionC id="gallery" title="the gallery" sticker="walk the wall">
         <p className="body-copy">अपनी favourite चीज़ें, एक लंबी दीवार पे. drag to walk the wall - click a frame to step closer.</p>
-        <BookShelf />
+        <PosterWall />
       </SectionC>
       <GreetBand />
     </>
@@ -725,7 +860,6 @@ function ContactV5() {
         <a className="chip chip-link contact-chip" href="https://www.instagram.com/auti__sm" target="_blank" rel="noreferrer">{CIcon.instagram}<span>instagram - @auti__sm</span></a>
         <a className="chip chip-link contact-chip" href="https://www.linkedin.com/in/swayamsmohanty042004" target="_blank" rel="noreferrer">{CIcon.linkedin}<span>linkedin - swayamsmohanty042004</span></a>
         <a className="chip chip-link contact-chip" href="https://github.com/swayamsgit" target="_blank" rel="noreferrer">{CIcon.github}<span>github - swayamsgit</span></a>
-        <a className="chip chip-link contact-chip" href="/assets/swayams-mohanty-resume.pdf" download="swayams-mohanty-resume.pdf">{CIcon.file}<span>resume - pdf</span></a>
       </div>
     </SectionC>
   );
